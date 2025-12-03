@@ -142,7 +142,7 @@ WITH DISTINCT ik
 RETURN sum(ik) AS part2
 ```
 
-##Day 3
+## Day 3
 
 [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-3-lobby-76281355e6ae)
 

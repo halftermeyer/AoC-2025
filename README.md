@@ -1,5 +1,7 @@
 # AoC-2025
-Advent of Code 2025 in Cypher
+
+This is my personal rule for the 12 days:
+Every single puzzle of Advent of Code 2025 will be solved exclusively in Neo4j Cypher, made easier by the brand-new CYPHER 25 and the occasional APOC / GDS helper when it really shines. No Python, no JavaScript, no external code — the database does everything.
 
 ## Day 1
 

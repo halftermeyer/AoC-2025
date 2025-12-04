@@ -7,6 +7,21 @@ Every single puzzle of Advent of Code 2025 will be solved exclusively in Neo4j C
 
 [blog](https://medium.com/@pierre.halftermeyer/aoc-2025-in-cypher-day-1-secret-entrance-0e8a747edafd)
 
+### Setup
+
+```cypher
+:params {data: "L68
+L30
+R48
+L5
+R60
+L55
+L1
+L99
+R14
+L82"}
+```
+
 ### Part 1
 
 ```cypher
@@ -60,6 +75,12 @@ RETURN reduce(
 ## Day 2
 
 [blog](https://medium.com/@pierre.halftermeyer/aoc-2025-in-cypher-day-2-gift-shop-advent-of-code-2025-ed9e57557c52)
+
+### Setup
+
+```cypher
+:params {data: "11-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124"}
+```
 
 ### Part 1
 
@@ -148,6 +169,15 @@ RETURN sum(ik) AS part2
 
 [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-3-lobby-76281355e6ae)
 
+### Setup
+
+```cypher
+:param {data: "987654321111111
+811111111111119
+234234234234278
+818181911112111"}
+```
+
 ### Part 1
 
 ```cypher
@@ -222,3 +252,85 @@ WITH reduce(
      ) AS bank_joltage
 RETURN sum(bank_joltage) AS part2
 ```
+
+## Day 4
+
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-4-printing-department-in-cypher-abaf356f6dcc?postPublishedType=initial)
+
+### Setup
+
+```cypher
+:params {data: "..@@.@@@@.
+@@@.@.@.@@
+@@@@@.@.@@
+@.@@@@..@.
+@@.@@@@.@@
+.@@@@@@@.@
+.@.@.@.@@@
+@.@@@.@@@@
+.@@@@@@@@.
+@.@.@@@.@."}
+```
+
+```cypher
+CREATE CONSTRAINT pos_row_coll IF NOT EXISTS FOR (p:Position) REQUIRE (p.row_ix, p.coll_ix) IS NODE KEY;
+CREATE INDEX pos_mark IF NOT EXISTS FOR (p:Position) ON (p.mark);
+```
+
+### Part 1
+
+```cypher
+CYPHER 25
+
+MATCH (n)
+CALL(n) {
+  DETACH DELETE n
+} IN TRANSACTIONS OF 1000 ROWS
+RETURN collect (n) AS _
+
+NEXT
+
+LET grid = reduce(rows = [],
+  row IN split($data, '\n') | rows + [[cell IN split(row, '') | cell]])
+CALL (grid) {
+  UNWIND range(0, size(grid)-1) AS row_ix
+  UNWIND range(0, size(grid[0])-1) AS coll_ix
+  MERGE (p:Position {row_ix:row_ix, coll_ix:coll_ix})
+    SET p.mark = grid[row_ix][coll_ix]
+  }
+
+MATCH (p:Position)
+CALL (p) {
+    MATCH (neigh:Position)
+    WHERE p.row_ix-1 <= neigh.row_ix <= p.row_ix+1
+    AND p.coll_ix-1 <= neigh.coll_ix <= p.coll_ix+1
+    AND p <> neigh
+    AND elementId(p) < elementId(neigh)
+    MERGE (p)-[:NEIGHBOR]->(neigh)
+  }
+
+MATCH (p:Position {mark: '@'})
+WITH p, count {(p)-[:NEIGHBOR]-(x WHERE x.mark = '@')} AS neigh_num
+WHERE neigh_num < 4
+RETURN count(p) AS part1
+```
+
+### Part 2
+
+```cypher
+CYPHER 25
+UNWIND range(1,1_000_000) AS loopx
+CALL (loopx) {
+  MATCH (pos:Position {mark: '@'})
+  WITH pos, count {(pos)-[:NEIGHBOR]-(x WHERE x.mark = '@')} AS neigh_num
+  WHERE neigh_num < 4
+  SET pos.mark = 'x'
+  WITH count(pos) AS num_x
+  RETURN CASE num_x WHEN 0 THEN 1/0 ELSE num_x END AS num_x
+} IN TRANSACTIONS OF 1 ROW
+  ON ERROR BREAK
+  REPORT STATUS AS s
+FILTER s.committed = true
+RETURN sum(num_x) AS part2
+```
+

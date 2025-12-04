@@ -282,15 +282,7 @@ CREATE INDEX pos_mark IF NOT EXISTS FOR (p:Position) ON (p.mark);
 ```cypher
 CYPHER 25
 
-MATCH (n)
-CALL(n) {
-  DETACH DELETE n
-} IN TRANSACTIONS OF 1000 ROWS
-RETURN collect (n) AS _
-
-NEXT
-
-LET grid = [row IN split($data, '\n') | [cell IN split(row, '')]]
+LET grid = [row IN split($data, '\n') | split(row, '')]
 CALL (grid) {
   UNWIND range(0, size(grid)-1) AS row_ix
   UNWIND range(0, size(grid[0])-1) AS coll_ix

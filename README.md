@@ -290,8 +290,7 @@ RETURN collect (n) AS _
 
 NEXT
 
-LET grid = reduce(rows = [],
-  row IN split($data, '\n') | rows + [[cell IN split(row, '') | cell]])
+LET grid = [row IN split($data, '\n') | [cell IN split(row, '')]]
 CALL (grid) {
   UNWIND range(0, size(grid)-1) AS row_ix
   UNWIND range(0, size(grid[0])-1) AS coll_ix

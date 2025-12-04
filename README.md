@@ -325,3 +325,30 @@ FILTER s.committed = true
 RETURN sum(num_x) AS part2
 ```
 
+### Alternative GDS-based Part 2
+
+```cypher
+CYPHER 25
+
+MATCH (source:Position {mark: '@'})-[r:NEIGHBOR]->(target:Position{mark: '@'})
+RETURN gds.graph.project(
+  'graph',
+  source,
+  target,
+  {},
+  { undirectedRelationshipTypes: ['*'] }
+) AS g
+
+
+NEXT
+
+CALL gds.kcore.stream('graph')
+YIELD nodeId, coreValue
+FILTER coreValue < 4
+RETURN gds.util.asNode(nodeId) AS cell, coreValue
+ORDER BY coreValue ASC, cell DESC
+
+NEXT
+
+RETURN count(cell) AS part2
+```

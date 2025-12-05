@@ -459,21 +459,16 @@ CYPHER 25
 
 MATCH (rg1:FreshIDRange)
 OPTIONAL MATCH (rg1)-[:STARTS_IN]->(rg2)
-RETURN gds.graph.project(
-  'ranges',
-  rg1,
-  rg2,
-  {}
-) AS g
+RETURN gds.graph.project('ranges', rg1, rg2, {}) AS g
 
 NEXT
 
 CALL gds.wcc.stream('ranges')
 YIELD nodeId, componentId
-WITH [gds.util.asNode(nodeId).start, gds.util.asNode(nodeId).end] AS bounds, componentId
-UNWIND bounds AS bound
-WITH bound, componentId ORDER BY bound ASC
-WITH collect(bound) AS bounds, componentId
-WITH componentId, bounds[-1]-bounds[0]+1 AS fresh_id_qty
+WITH
+  min(gds.util.asNode(nodeId).start) AS start,
+  max(gds.util.asNode(nodeId).end) AS end,
+  componentId
+WITH componentId, end-start+1 AS fresh_id_qty
 RETURN sum(fresh_id_qty) AS part2
 ```

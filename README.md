@@ -352,3 +352,128 @@ NEXT
 
 RETURN count(cell) AS part2
 ```
+
+## Day 5
+
+[blog]()
+
+### Setup
+
+```cypher
+:params {data: "3-5
+10-14
+16-20
+12-18
+
+1
+5
+8
+11
+17
+32"}
+```
+
+```cypher
+CREATE INDEX fresh_id_range_start_end IF NOT EXISTS FOR (n:FreshIDRange) ON (n.start, n.end);
+```
+
+### Part 1
+
+```cypher
+CYPHER 25
+UNWIND split($data, '\n') AS line
+CALL (line) {
+  WHEN line CONTAINS '-' THEN {
+    LET rg = split(line, '-')
+    CREATE (:FreshIDRange {start:toInteger(rg[0]), end:toInteger(rg[1])})
+  }
+}
+RETURN count(line) AS _
+
+NEXT
+
+UNWIND split($data, '\n') AS line
+CALL (line) {
+  WHEN NOT line CONTAINS '-' AND size(line) > 0 THEN {
+    MATCH ANY (rg:FreshIDRange WHERE rg.start <= toInteger(line) <= rg.end)
+    RETURN line AS num, rg
+    LIMIT 1
+  }
+}
+RETURN count(rg) AS part1
+```
+
+### Part 2
+
+#### Setup
+
+```cypher
+CYPHER 25
+MATCH (rg1:FreshIDRange)
+CALL (rg1) {
+  MATCH (rg2:FreshIDRange)
+  WHERE rg2.start <= rg1.start <= rg2.end
+  AND rg1 <> rg2
+  MERGE (rg1)-[:STARTS_IN]->(rg2)
+}
+RETURN count(rg1) AS _
+```
+
+#### pure CYPHER alternative
+
+```cypher
+CYPHER 25
+UNWIND range(1,1_000_000) AS loopx
+CALL (loopx) {
+  MATCH (rg1)-[:STARTS_IN]->(rg2)
+  FILTER rg1.start <> rg2.start OR rg1.end <> rg2.end
+  LIMIT 1
+  CALL (rg1, rg2) {
+    UNWIND [rg1.start, rg1.end, rg2.start, rg2.end] AS bound
+    WITH rg1, rg2, bound ORDER BY bound ASC
+    WITH rg1, rg2, collect(bound) AS bounds
+    SET
+      rg1.start = bounds[0],
+      rg2.start = bounds[0],
+      rg1.end = bounds[3],
+      rg2.end = bounds[3]
+  }
+  RETURN CASE count(*) WHEN 0 THEN 1/0 ELSE 1 END AS processed
+} IN TRANSACTIONS OF 1 ROW
+  ON ERROR BREAK
+  REPORT STATUS AS s
+FILTER s.committed = true
+RETURN sum(processed) AS _
+
+NEXT
+
+MATCH (rg:FreshIDRange)
+WITH DISTINCT rg.start AS start, rg.end AS end
+RETURN sum(end - start + 1) AS part2
+```
+
+#### GDS alternative
+
+```cypher
+CYPHER 25
+
+MATCH (rg1:FreshIDRange)
+OPTIONAL MATCH (rg1)-[:STARTS_IN]->(rg2)
+RETURN gds.graph.project(
+  'ranges',
+  rg1,
+  rg2,
+  {}
+) AS g
+
+NEXT
+
+CALL gds.wcc.stream('ranges')
+YIELD nodeId, componentId
+WITH [gds.util.asNode(nodeId).start, gds.util.asNode(nodeId).end] AS bounds, componentId
+UNWIND bounds AS bound
+WITH bound, componentId ORDER BY bound ASC
+WITH collect(bound) AS bounds, componentId
+WITH componentId, bounds[-1]-bounds[0]+1 AS fresh_id_qty
+RETURN sum(fresh_id_qty) AS part2
+```

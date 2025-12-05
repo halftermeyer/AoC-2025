@@ -355,7 +355,7 @@ RETURN count(cell) AS part2
 
 ## Day 5
 
-[blog]()
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-5-cafeteria-in-cypher-ecdc2808cb17)
 
 ### Setup
 

@@ -472,3 +472,74 @@ WITH
 WITH componentId, end-start+1 AS fresh_id_qty
 RETURN sum(fresh_id_qty) AS part2
 ```
+
+## Day 6
+
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-6-trash-compactor-ccffec374bf0)
+
+### Setup
+
+```cypher
+:params {data: "123 328  51 64 
+ 45 64  387 23 
+  6 98  215 314
+*   +   *   +  "}
+```
+
+### Part 1
+
+```cypher
+CYPHER 25
+// Split into lines and remove empty cells
+LET data = [line IN split($data, '\n') 
+            | [val IN split(line, ' ') WHERE size(val) > 0]]
+// Convert each column of numbers into a list of integers
+LET num_lists = [l IN data[0..-1] 
+                 | [num IN l | toInteger(num)]]
+// The bottom row contains the operators
+LET sym_list = data[-1]
+// Fold over problems: for each column, apply + or * across its vertical numbers
+RETURN reduce(acc = 0, ix IN range(0, size(sym_list)-1) |
+  acc + reduce(acc_ix = CASE sym_list[ix] WHEN '*' THEN 1 ELSE 0 END,
+               num_list IN num_lists |
+    CASE sym_list[ix] 
+      WHEN '*' THEN acc_ix * num_list[ix] 
+      ELSE acc_ix + num_list[ix] 
+    END
+  )
+) AS part1
+```
+
+### Part 2
+
+```cypher
+CYPHER 25
+// Treat each character as a separate cell
+LET data = [line IN split($data, '\n') | split(line, '')]
+// Reconstruct numbers by reading columns right-to-left, top-to-bottom
+LET num_list = reduce(l = [],
+     ix IN range(size(data[0])-1, 0, -1) |
+  l + [toInteger(reduce(num = "",
+        num_line IN data[0..-1] |
+    num + CASE num_line[ix] IN ["0","1","2","3","4","5","6","7","8","9"] 
+          WHEN TRUE THEN num_line[ix] ELSE "" END
+  ))]
+)
+// Operators are the bottom row, but read right-to-left
+LET sym_list = reverse(data[-1])
+// Build a flat list: number, number, ..., operator, number, number, ..., operator...
+LET homework = [ix IN range(0, size(num_list)-1) 
+                | CASE num_list[ix] IS NULL 
+                  WHEN TRUE THEN sym_list[ix-1] 
+                  ELSE num_list[ix] END] + [sym_list[-1]]
+// Single-pass stack machine: push numbers, apply operator when seen
+RETURN reduce(state = {acc: 0, stack: [], log: []},
+     el IN homework |
+  CASE el
+    WHEN "*" THEN {acc: state.acc + reduce(ac=1,  n IN state.stack | ac * n), stack: []}
+    WHEN "+" THEN {acc: state.acc + reduce(ac=0,  n IN state.stack | ac + n), stack: []}
+    ELSE          {acc: state.acc,               stack: state.stack + [el]}
+  END
+).acc AS part2
+```
+

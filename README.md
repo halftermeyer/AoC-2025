@@ -533,7 +533,7 @@ LET homework = [ix IN range(0, size(num_list)-1)
                   WHEN TRUE THEN sym_list[ix-1] 
                   ELSE num_list[ix] END] + [sym_list[-1]]
 // Single-pass stack machine: push numbers, apply operator when seen
-RETURN reduce(state = {acc: 0, stack: [], log: []},
+RETURN reduce(state = {acc: 0, stack: []},
      el IN homework |
   CASE el
     WHEN "*" THEN {acc: state.acc + reduce(ac=1,  n IN state.stack | ac * n), stack: []}

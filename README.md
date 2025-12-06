@@ -521,16 +521,16 @@ LET num_list = reduce(l = [],
      ix IN range(size(data[0])-1, 0, -1) |
   l + [toInteger(reduce(num = "",
         num_line IN data[0..-1] |
-    num + CASE num_line[ix] IN ["0","1","2","3","4","5","6","7","8","9"] 
-          WHEN TRUE THEN num_line[ix] ELSE "" END
+    num + CASE WHEN num_line[ix] IN ["0","1","2","3","4","5","6","7","8","9"] 
+          THEN num_line[ix] ELSE "" END
   ))]
 )
 // Operators are the bottom row, but read right-to-left
 LET sym_list = reverse(data[-1])
 // Build a flat list: number, number, ..., operator, number, number, ..., operator...
 LET homework = [ix IN range(0, size(num_list)-1) 
-                | CASE num_list[ix] IS NULL 
-                  WHEN TRUE THEN sym_list[ix-1] 
+                | CASE WHEN num_list[ix] IS NULL 
+                  THEN sym_list[ix-1] 
                   ELSE num_list[ix] END] + [sym_list[-1]]
 // Single-pass stack machine: push numbers, apply operator when seen
 RETURN reduce(state = {acc: 0, stack: []},

@@ -521,7 +521,7 @@ LET num_list = reduce(l = [],
      ix IN range(size(data[0])-1, 0, -1) |
   l + [toInteger(reduce(num = "",
         num_line IN data[0..-1] |
-    num + CASE WHEN num_line[ix] IN ["0","1","2","3","4","5","6","7","8","9"] 
+    num + CASE WHEN num_line[ix] =~ "[0-9]"  
           THEN num_line[ix] ELSE "" END
   ))]
 )

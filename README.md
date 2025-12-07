@@ -545,7 +545,7 @@ RETURN reduce(state = {acc: 0, stack: []},
 
 ## Day 7
 
-[blog]()
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-7-laboratories-cf68d1dc3fd5)
 
 ### Setup
 

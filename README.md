@@ -543,3 +543,135 @@ RETURN reduce(state = {acc: 0, stack: []},
 ).acc AS part2
 ```
 
+## Day 7
+
+[blog]()
+
+### Setup
+
+```cypher
+:params {data: ".......S.......
+...............
+.......^.......
+...............
+......^.^......
+...............
+.....^.^.^.....
+...............
+....^.^...^....
+...............
+...^.^...^.^...
+...............
+..^...^.....^..
+...............
+.^.^.^.^.^...^.
+..............."}
+```
+
+```cypher
+CREATE CONSTRAINT loc_row_coll IF NOT EXISTS FOR (l:Location) REQUIRE (l.row_ix, l.coll_ix) IS NODE KEY;
+CREATE INDEX loc_mark IF NOT EXISTS FOR (l:Location) ON (l.mark);
+```
+
+```cypher
+// Create Nodes
+CYPHER 25
+
+LET grid = [row IN split($data, '\n') | [cell IN split(row, '')]]
+CALL (grid) {
+  UNWIND range(0, size(grid)-1) AS row_ix
+  UNWIND range(0, size(grid[0])-1) AS coll_ix
+  CREATE (l:Location {row_ix:row_ix, coll_ix:coll_ix, mark: grid[row_ix][coll_ix]})
+  }
+RETURN count(*) AS one_row
+```
+
+```cypher
+// Create Relationships (part 1 only so better run next one)
+CYPHER 25
+
+UNWIND range(1,1_000_000) AS loopx
+CALL (loopx) {
+  MATCH (l:Location&!Processed)
+  WHERE (l.mark = 'S' OR EXISTS {()-[:BEAM_CONTINUES_TO]->(l)})
+  CALL (l) {
+      WHEN l.mark IN ['S', '.'] THEN {
+      SET l:Processed
+      MATCH (neigh:Location {row_ix:l.row_ix+1, coll_ix:l.coll_ix})
+      CREATE (l)-[:BEAM_CONTINUES_TO]->(neigh)
+      
+      }
+      ELSE {
+      SET l:Processed
+      MATCH (neigh:Location WHERE neigh.row_ix = l.row_ix+1 AND neigh.coll_ix IN [l.coll_ix-1, l.coll_ix+1])
+      CREATE (l)-[:BEAM_CONTINUES_TO]->(neigh)
+      }
+  }
+  RETURN CASE count(l) WHEN 0 THEN 1/0 ELSE count(l) END AS processed
+}  IN TRANSACTIONS OF 1 ROW
+ON ERROR BREAK
+RETURN sum(processed) AS locations_processed
+```
+
+```cypher
+// Create Relationships and count upstream splitted words (for part 1 anc part 2)
+CYPHER 25
+
+UNWIND range(1,1_000_000) AS loopx
+CALL (loopx) {
+  MATCH (l:Location&!Processed)
+  WHERE (l.mark = 'S' OR EXISTS {()-[:BEAM_CONTINUES_TO]->(l)})
+  CALL (l) {
+      WHEN l.mark='S' THEN {
+      SET l:Processed
+      MATCH (neigh:Location {row_ix:l.row_ix+1, coll_ix:l.coll_ix})
+      CREATE (l)-[:BEAM_CONTINUES_TO {splitted: 1}]->(neigh)
+      }
+      WHEN l.mark='.' THEN {
+      SET l:Processed
+      MATCH (neigh:Location {row_ix:l.row_ix+1, coll_ix:l.coll_ix})
+      CREATE (l)-[:BEAM_CONTINUES_TO {
+        splitted: reduce ( acc=0, s IN COLLECT {
+          MATCH ()-[b:BEAM_CONTINUES_TO]->(l) RETURN b.splitted
+        } | acc+s)
+      }]->(neigh)
+      }
+      ELSE {
+      SET l:Processed
+      MATCH (neigh:Location WHERE neigh.row_ix = l.row_ix+1 AND neigh.coll_ix IN [l.coll_ix-1, l.coll_ix+1])
+      CREATE (l)-[:BEAM_CONTINUES_TO {
+        splitted: reduce ( acc=0, s IN COLLECT {
+          MATCH ()-[b:BEAM_CONTINUES_TO]->(l) RETURN b.splitted
+        } | acc+s)
+      }]->(neigh)
+      }
+  }
+  RETURN CASE count(l) WHEN 0 THEN 1/0 ELSE count(l) END AS processed
+}  IN TRANSACTIONS OF 1 ROW
+ON ERROR BREAK
+RETURN sum(processed) AS locations_processed
+```
+
+### Part 1
+
+```cypher
+MATCH(l:Location {mark:'^'})
+WHERE l:Processed
+RETURN count(l) AS part1
+```
+
+### Part 2
+
+```cypher
+CYPHER 25
+MATCH (l:Location)
+RETURN max(l.row_ix) AS max_row_ix
+
+NEXT
+
+MATCH (end:Location {row_ix: max_row_ix})
+RETURN sum (reduce ( acc=0, s IN COLLECT {
+          MATCH ()-[b:BEAM_CONTINUES_TO]->(end) RETURN b.splitted
+        } | acc+s) ) AS part2
+```
+

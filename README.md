@@ -677,7 +677,7 @@ RETURN sum (reduce ( acc=0, s IN COLLECT {
 
 ## Day 8
 
-[blog]()
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-8-playground-173f473bd9fa)
 
 ### Setup
 
@@ -725,13 +725,13 @@ WHERE elementId(jb1) < elementId(jb2)
 ORDER BY point.distance(jb1.pos, jb2.pos) ASC
 LIMIT $iter
 CALL (jb1, jb2){
-MATCH (jb1)-[:SAME_CC_AS]->*(last1)
-  WHERE NOT EXISTS {(last1)-[:SAME_CC_AS]->()}
-MATCH (jb2)-[:SAME_CC_AS]->*(last2)
-  WHERE NOT EXISTS {(last2)-[:SAME_CC_AS]->()}
-  CALL (last1, last2) {
-    WHEN last1 <> last2 THEN {
-      CREATE (last1)-[:SAME_CC_AS]->(last2)
+MATCH (jb1)-[:SAME_CC_AS]->*(root1)
+  WHERE NOT EXISTS {(root1)-[:SAME_CC_AS]->()}
+MATCH (jb2)-[:SAME_CC_AS]->*(root2)
+  WHERE NOT EXISTS {(root2)-[:SAME_CC_AS]->()}
+  CALL (root1, root2) {
+    WHEN root1 <> root2 THEN {
+      CREATE (root1)-[:SAME_CC_AS]->(root2)
     }
   }
 }
@@ -740,9 +740,9 @@ MATCH (jb2)-[:SAME_CC_AS]->*(last2)
 ### Part 1
 
 ```cypher
-MATCH (jb:JBox)-[:SAME_CC_AS]->*(last)
-WHERE NOT EXISTS {(last)-[:SAME_CC_AS]->()}
-WITH last, count(jb) AS cc_size
+MATCH (jb:JBox)-[:SAME_CC_AS]->*(root)
+WHERE NOT EXISTS {(root)-[:SAME_CC_AS]->()}
+WITH root, count(jb) AS cc_size
 ORDER BY cc_size DESC LIMIT 3
 RETURN reduce(acc=1, s IN collect(cc_size) | acc*s) AS part1
 ```
@@ -764,13 +764,13 @@ CALL (jb1, jb2){
     ELSE {
       MERGE (xs:LastXsSeen)
         SET xs.x1 = toInteger(jb1.pos.x), xs.x2 = toInteger(jb2.pos.x)
-      MATCH (jb1)-[:SAME_CC_AS]->*(last1)
-        WHERE NOT EXISTS {(last1)-[:SAME_CC_AS]->()}
-      MATCH (jb2)-[:SAME_CC_AS]->*(last2)
-        WHERE NOT EXISTS {(last2)-[:SAME_CC_AS]->()}
-      CALL (last1, last2) {
-          WHEN last1 <> last2 THEN {
-            CREATE (last1)-[:SAME_CC_AS]->(last2)
+      MATCH (jb1)-[:SAME_CC_AS]->*(root1)
+        WHERE NOT EXISTS {(root1)-[:SAME_CC_AS]->()}
+      MATCH (jb2)-[:SAME_CC_AS]->*(root2)
+        WHERE NOT EXISTS {(root2)-[:SAME_CC_AS]->()}
+      CALL (root1, root2) {
+          WHEN root1 <> root2 THEN {
+            CREATE (root1)-[:SAME_CC_AS]->(root2)
           }
         }
       }

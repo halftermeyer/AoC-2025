@@ -675,3 +675,113 @@ RETURN sum (reduce ( acc=0, s IN COLLECT {
         } | acc+s) ) AS part2
 ```
 
+## Day 8
+
+[blog]()
+
+### Setup
+
+```cypher
+// iter = 1000 on non-test input
+:params {iter: 10, data: "162,817,812
+57,618,57
+906,360,560
+592,479,940
+352,342,300
+466,668,158
+542,29,236
+431,825,988
+739,650,466
+52,470,668
+216,146,977
+819,987,18
+117,168,530
+805,96,715
+346,949,466
+970,615,88
+941,993,340
+862,61,35
+984,92,344
+425,690,689"}
+```
+
+```cypher
+CREATE POINT INDEX jbox_point_index IF NOT EXISTS
+FOR (j:JBox) ON (j.position)
+```
+
+```cypher
+CYPHER 25
+LET points = [row IN split($data, '\n') | [coord IN split(row, ',')| toInteger(coord)]]
+LET points_point = [xyz_t IN points | point({x:xyz_t[0], y:xyz_t[1], z:xyz_t[2]})]
+UNWIND points_point AS jbox_pos
+CREATE (:JBox {pos: jbox_pos});
+```
+
+```cypher
+CYPHER 25
+MATCH (jb1:JBox), (jb2:JBox)
+WHERE elementId(jb1) < elementId(jb2)
+ORDER BY point.distance(jb1.pos, jb2.pos) ASC
+LIMIT $iter
+CALL (jb1, jb2){
+MATCH (jb1)-[:SAME_CC_AS]->*(last1)
+  WHERE NOT EXISTS {(last1)-[:SAME_CC_AS]->()}
+MATCH (jb2)-[:SAME_CC_AS]->*(last2)
+  WHERE NOT EXISTS {(last2)-[:SAME_CC_AS]->()}
+  CALL (last1, last2) {
+    WHEN last1 <> last2 THEN {
+      CREATE (last1)-[:SAME_CC_AS]->(last2)
+    }
+  }
+}
+```
+
+### Part 1
+
+```cypher
+MATCH (jb:JBox)-[:SAME_CC_AS]->*(last)
+WHERE NOT EXISTS {(last)-[:SAME_CC_AS]->()}
+WITH last, count(jb) AS cc_size
+ORDER BY cc_size DESC LIMIT 3
+RETURN reduce(acc=1, s IN collect(cc_size) | acc*s) AS part1
+```
+
+### Part 2
+
+```cypher
+CYPHER 25
+MATCH (jb1:JBox), (jb2:JBox)
+WHERE elementId(jb1) < elementId(jb2)
+ORDER BY point.distance(jb1.pos, jb2.pos) ASC
+CALL (jb1, jb2){
+  WHEN COUNT {
+      MATCH (cc:JBox) WHERE NOT EXISTS {(cc)-[:SAME_CC_AS]->()}
+    } = 1
+    THEN {
+      CREATE (:X {err_prop: 1/0})
+    }
+    ELSE {
+      MERGE (xs:LastXsSeen)
+        SET xs.x1 = toInteger(jb1.pos.x), xs.x2 = toInteger(jb2.pos.x)
+      MATCH (jb1)-[:SAME_CC_AS]->*(last1)
+        WHERE NOT EXISTS {(last1)-[:SAME_CC_AS]->()}
+      MATCH (jb2)-[:SAME_CC_AS]->*(last2)
+        WHERE NOT EXISTS {(last2)-[:SAME_CC_AS]->()}
+      CALL (last1, last2) {
+          WHEN last1 <> last2 THEN {
+            CREATE (last1)-[:SAME_CC_AS]->(last2)
+          }
+        }
+      }
+    } IN TRANSACTIONS OF 1 ROW
+  ON ERROR BREAK
+  RETURN count(*) AS _
+  
+  NEXT  
+
+  MATCH (xs:LastXsSeen)
+  RETURN xs.x1 * xs.x2 AS part2
+```
+
+

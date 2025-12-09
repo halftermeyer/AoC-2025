@@ -786,7 +786,7 @@ CALL (jb1, jb2){
 
 ## Day 9
 
-[blog]()
+[blog](https://medium.com/@pierre.halftermeyer/aoc-2025-in-cypher-day-9-movie-theater-98fa0545413d)
 
 ### Setup – Load the red tiles and create the full grid
 

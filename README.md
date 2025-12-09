@@ -788,7 +788,7 @@ CALL (jb1, jb2){
 
 [blog]()
 
-### Setup
+### Setup – Load the red tiles and create the full grid
 
 ```cypher
 :params {data: "7,1
@@ -807,20 +807,21 @@ CREATE CONSTRAINT tile_row_col IF NOT EXISTS FOR (t:Tile) REQUIRE (t.row_ix, t.c
 ```
 
 ```cypher
+// Step 1: Create every possible Tile node (we need the whole rectangle)
 CYPHER 25
-
 LET row_ixes = [l IN split($data, '\n')| toInteger(split(l,',')[1])]
 LET col_ixes = [l IN split($data, '\n')| toInteger(split(l,',')[0])]
 UNWIND row_ixes AS row_ix
 UNWIND col_ixes AS col_ix
 CALL (row_ix, col_ix) {
   MERGE (t:Tile {row_ix: row_ix, col_ix: col_ix})
-  SET t.X = t.col_ix, t.Y=-t.row_ix
+  SET t.X = t.col_ix, t.Y=-t.row_ix // optional Cartesian coordinates for visualisation
 } IN TRANSACTIONS OF 1000 ROWS
 RETURN count(*) AS _
 
 NEXT
 
+// Step 2: Tag the actual red tiles and give them a stable order (red_id)
 LET red_coords = [l IN split($data, '\n')| {row_ix: toInteger(split(l,',')[1]), col_ix: toInteger(split(l,',')[0])} ]
 UNWIND range (0, size(red_coords)-1) AS ix
 WITH red_coords[ix] AS red_coord, ix
@@ -828,7 +829,7 @@ MATCH (t:Tile {row_ix: red_coord.row_ix, col_ix: red_coord.col_ix})
 SET t:Red, t.red_id=ix
 ```
 
-### Part 1
+### Part 1 – Brute-force biggest rectangle with red opposite corners
 
 ```cypher
 MATCH (r1:Red), (r2:Red)
@@ -837,11 +838,14 @@ ORDER BY area DESC
 RETURN area AS part1 LIMIT 1
 ```
 
-### Part 2
+### Part 2 – Only red + green tiles are allowed → we must stay inside the closed loop
+
+#### Build the border skeleton (consecutive red tiles)
 
 ```cypher
 CYPHER 25
 
+// Horizontal connections (east)
 MATCH (t:Red)
 WITH t, t.row_ix AS row, t.col_ix AS col
 ORDER BY row
@@ -856,6 +860,7 @@ RETURN count(column) AS _
 
 NEXT
 
+// Vertical connections (south)
 MATCH (t:Red)
 WITH t, t.row_ix AS row, t.col_ix AS col
 ORDER BY col
@@ -869,9 +874,12 @@ CALL(row_tiles) {
 RETURN count(row_tiles) AS _
 ```
 
+#### Fill every tile that belongs to the border
+
 ```cypher
 CYPHER 25
 
+// Horizontal border segments
 MATCH (r1:Red)-[r:NEXT_RED_EAST]->(r2:Red)
 MATCH (t:Tile)
 WHERE t.row_ix = r1.row_ix AND r1.col_ix <= t.col_ix <= r2.col_ix
@@ -886,6 +894,7 @@ RETURN count(*) AS _
 
 NEXT
 
+// Vertical border segments
 MATCH (r1:Red)-[r:NEXT_RED_SOUTH]->(r2:Red)
 MATCH (t:Tile)
 WHERE t.col_ix = r1.col_ix AND r1.row_ix <= t.row_ix <= r2.row_ix
@@ -899,7 +908,10 @@ CALL (ts) {
 RETURN count(*) AS _
 ```
 
+#### Mark the tiles we will use as parity counters
+
 ```cypher
+// :Awesome → these are the points where a left-to-right ray crosses the polygon boundary
 CALL () {
   MATCH ()-[:NEXT_BORDER_SOUTH]->(t:Tile)-[:NEXT_BORDER_SOUTH]->()
   RETURN t
@@ -918,12 +930,18 @@ SET t:Awesome
 ```
 
 ```cypher
+// :Lonely = tiles that currently have NO border relationship at all
+// (they are not decided yet – they can become inside, outside, or even border later)
 MATCH (t:Tile)
 WHERE NOT EXISTS {(t)-[:NEXT_BORDER_EAST|NEXT_BORDER_SOUTH]-()}
 SET t:Lonely
 ```
 
+#### Even-odd fill: scan each row west → east
+
 ```cypher
+// Classic point-in-polygon even-odd rule implemented purely in Cypher
+// Every time we cross an :Awesome tile we toggle inside/outside
 CYPHER 25
 MATCH (t:Awesome|Lonely)
 WITH t, t.row_ix AS row_ix
@@ -943,9 +961,11 @@ CALL (awesomelonely_row) {
 }
 ```
 
+#### Connect every allowed tile (red or green)
+
 ```cypher
 CYPHER 25
-
+// vertical connections
 MATCH (t:Tile)
 WITH t, t.row_ix AS row, t.col_ix AS col
 ORDER BY row
@@ -961,6 +981,7 @@ RETURN count(column) AS _
 
 NEXT
 
+// horizontal connections
 MATCH (t:Tile)
 WITH t, t.row_ix AS row, t.col_ix AS col
 ORDER BY col
@@ -975,9 +996,12 @@ CALL(row_tiles) {
 RETURN count(row_tiles) AS _
 ```
 
+#### Final answer
+
 ```cypher
 CYPHER 25
 
+// Optional: all candidate rectangles sorted by area
 MATCH (a:Red), (c:Red)
 WITH a, c, (abs(c.col_ix-a.col_ix)+1)*(abs(c.row_ix-a.row_ix)+1) AS area
 ORDER BY area DESC
@@ -985,7 +1009,9 @@ RETURN a, c, area
 
 NEXT
 
-MATCH path=(a:Red)-[:NEXT_EAST]->*(b:Tile {col_ix: c.col_ix, row_ix: a.row_ix})-[:NEXT_SOUTH]-*(c:Red)<-[:NEXT_EAST]-*(d:Tile {col_ix: a.col_ix, row_ix: c.row_ix})-[:NEXT_SOUTH]-*(a)
+// The real Part 2 – the largest rectangle whose four sides are fully connected inside the allowed area
+MATCH path=(a:Red)-[:NEXT_EAST]->*(b:Tile {col_ix: c.col_ix, row_ix: a.row_ix})
+  -[:NEXT_SOUTH]-*(c:Red)<-[:NEXT_EAST]-*(d:Tile {col_ix: a.col_ix, row_ix: c.row_ix})-[:NEXT_SOUTH]-*(a)
 RETURN area AS part2
 LIMIT 1
 ```

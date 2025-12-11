@@ -1018,7 +1018,7 @@ LIMIT 1
 
 ## Day 11
 
-[blog]()
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-11-reactor-073e1418a075)
 
 ### Setup
 

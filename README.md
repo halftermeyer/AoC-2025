@@ -1015,3 +1015,111 @@ MATCH path=(a:Red)-[:NEXT_EAST]->*(b:Tile {col_ix: c.col_ix, row_ix: a.row_ix})
 RETURN area AS part2
 LIMIT 1
 ```
+
+## Day 11
+
+[blog]()
+
+### Setup
+
+#### Set test data
+```cypher
+:params {
+  data:"aaa: you hhh
+you: bbb ccc
+bbb: ddd eee
+ccc: ddd eee fff
+ddd: ggg
+eee: out
+fff: out
+ggg: out
+hhh: ccc fff iii
+iii: out"
+}
+```
+
+#### Set second test data
+```cypher
+:params {
+  data:"svr: aaa bbb
+aaa: fft
+fft: ccc
+bbb: tty
+tty: ccc
+ccc: ddd eee
+ddd: hub
+hub: fff
+eee: dac
+dac: fff
+fff: ggg hhh
+ggg: out
+hhh: out"
+}
+```
+
+```cypher
+CREATE INDEX device_id
+FOR (d:Device) ON (d.id)
+```
+
+### Part 1
+
+```cypher
+CYPHER 25
+LET u_list = [l IN split($data, '\n') | split(l, ':')[0]]
+LET vs_list = [l IN split($data, '\n') | split(split(l, ': ')[1], ' ')]
+UNWIND range(0, size(u_list)-1) AS ix
+WITH u_list[ix] AS u, vs_list[ix] AS vs
+UNWIND vs AS v
+MERGE (a:Device {id: u})
+MERGE (b:Device {id: v})
+MERGE (a)-[:CONNECTS_TO]->(b)
+RETURN count(*) AS _
+
+NEXT
+
+MATCH  (you:Device {id: "you"})-[:CONNECTS_TO]->*(out:Device {id: "out"})
+RETURN count(*) AS part1
+```
+
+### Part 2
+
+#### Setup (specific to my data input)
+
+<img width="1441" height="1152" alt="dag-aoc11" src="https://github.com/user-attachments/assets/09466df5-3a37-4fcc-8335-1fb865b521c8" />
+
+```cypher
+:params {
+cuts: [
+  ['svr'],
+  ['wfb', 'zys', 'fks', 'way', 'ohn'],
+  ['fft'],
+  ['wsv', 'xdm', 'tcq', 'ixb', 'egi'],
+  ['fss', 'dxk', 'xpd'],
+  ['yln', 'hoz', 'fgq', 'ufw', 'nrj'],
+  ['dac'],
+  ['elb', 'ifr', 'you'],
+  ['out']
+]
+}
+```
+
+```cypher
+UNWIND range(0, size($cuts)-2) AS ix
+WITH $cuts[ix] AS from_cut, $cuts[ix+1] AS to_cut,  coalesce($cuts[ix+2],[]) AS next_cut
+CALL (from_cut, to_cut, next_cut) {
+    MATCH  path = (d1:Device WHERE d1.id IN from_cut)
+  (()-[:CONNECTS_TO]->(x WHERE NOT x.id IN from_cut + to_cut + next_cut))*()
+  -[:CONNECTS_TO]->(d2:Device WHERE d2.id IN to_cut)
+    WITH d1, d2, count(path) AS num_paths
+    MERGE (d1)-[:SHORTCUT_TO {num_paths: num_paths}]->(d2)
+} IN CONCURRENT TRANSACTIONS OF 1 ROWS
+```
+
+```cypher
+MATCH  path = (svr:Device {id: "svr"})-[rs:SHORTCUT_TO]->*(out:Device {id: "out"})
+RETURN sum(reduce(
+  acc = 1,
+  r IN rs | acc * r.num_paths
+)) AS part2
+```

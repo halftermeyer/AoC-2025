@@ -1090,7 +1090,7 @@ RETURN count(*) AS part1
 
 ```cypher
 :params {
-cuts: [
+stopovers: [
   ['svr'],
   ['wfb', 'zys', 'fks', 'way', 'ohn'],
   ['fft'],
@@ -1105,15 +1105,15 @@ cuts: [
 ```
 
 ```cypher
-UNWIND range(0, size($cuts)-2) AS ix
-WITH $cuts[ix] AS from_cut, $cuts[ix+1] AS to_cut,  coalesce($cuts[ix+2],[]) AS next_cut
-CALL (from_cut, to_cut, next_cut) {
-    MATCH  path = (d1:Device WHERE d1.id IN from_cut)
-  (()-[:CONNECTS_TO]->(x WHERE NOT x.id IN from_cut + to_cut + next_cut))*()
-  -[:CONNECTS_TO]->(d2:Device WHERE d2.id IN to_cut)
+UNWIND range(0, size($stopovers)-1) AS ix
+WITH $stopovers[ix] AS from_stopover, $stopovers[ix+1] AS to_stopover,  coalesce($stopovers[ix+2],[]) AS next_stopover
+CALL (from_stopover, to_stopover, next_stopover) {
+    MATCH  path = (d1:Device WHERE d1.id IN from_stopover)
+  (()-[:CONNECTS_TO]->(x WHERE NOT x.id IN from_stopover + to_stopover + next_stopover))*()
+  -[:CONNECTS_TO]->(d2:Device WHERE d2.id IN to_stopover)
     WITH d1, d2, count(path) AS num_paths
     MERGE (d1)-[:SHORTCUT_TO {num_paths: num_paths}]->(d2)
-} IN CONCURRENT TRANSACTIONS OF 1 ROWS
+} IN TRANSACTIONS OF 1 ROWS
 ```
 
 ```cypher

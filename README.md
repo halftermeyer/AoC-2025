@@ -1123,3 +1123,73 @@ RETURN sum(reduce(
   r IN rs | acc * r.num_paths
 )) AS part2
 ```
+
+## Day 12
+
+[blog]()
+
+### Setup
+
+```cypher
+:params {data: "0:
+###
+##.
+##.
+
+1:
+###
+##.
+.##
+
+2:
+.##
+###
+##.
+
+3:
+##.
+###
+##.
+
+4:
+###
+#..
+###
+
+5:
+###
+.#.
+###
+
+4x4: 0 0 0 0 2 0
+12x5: 1 0 1 0 2 2
+12x5: 1 0 1 0 3 2"}
+```
+
+### Part 1
+
+This solution would not work if there were edgy entries in my input.
+
+```cypher
+CYPHER 25
+
+// compute minimal amount of space to store a given present
+LET hash_per_shape = [shape IN split($data, '\n\n')[..-1]| size([c IN split(shape,'') WHERE c = '#'])]
+
+// compute obious lack of space -- minimal amount of space > area of the grid
+WITH [line IN split(split($data, '\n\n')[-1], '\n') |
+  toInteger(split(line, 'x')[0]) * toInteger(split(split(line, ':')[0],'x')[1])
+      < reduce(acc=0,
+        n IN [ix IN range(0, size(split(line, ' ')[1..])-1)|
+          toInteger(split(line, ' ')[1..][ix]) * toInteger(hash_per_shape[ix])]|acc+n
+              )
+        ] AS nok_t,
+  // compute obious fit -- 9 x nb of present < area of the grid
+ [line IN split(split($data, '\n\n')[-1], '\n') |
+  3*(toInteger(split(line, 'x')[0])/3) * 3*(toInteger(split(split(line, ':')[0],'x')[1])/3)
+      >= 9 * reduce(acc=0, n IN [i IN split(line, ' ')[1..]| toInteger(i)]|acc+n)] as ok_t
+RETURN
+  any(ix IN range(0, size(ok_t)-1) WHERE NOT (nok_t[ix] OR ok_t[ix])) AS some_edge_cases_to_decide,//false on my input
+  size([b IN nok_t WHERE b]) AS wont_fit_obviously,
+  size([b IN ok_t WHERE b]) AS will_fit_obviously // part1 result if edge_cases is false
+```

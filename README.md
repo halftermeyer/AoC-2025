@@ -1016,6 +1016,254 @@ RETURN area AS part2
 LIMIT 1
 ```
 
+## Day 10
+
+[blog]()
+
+### setup
+
+```cypher
+:params {
+  data:"[.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
+[...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}
+[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}"
+}
+```
+
+```cypher
+CYPHER 25
+LET targets_string = [l IN split($data, '\n') | split(l, " ")[0]]
+LET targets_t = [t In targets_string | [ix IN range(0, size(t)-1) | split(t,'')[ix]='#'][1..-1]]
+
+LET buttons_string = [l IN split($data, '\n') | [b IN split(l, " ")[1..-1] | split(substring(b,1, size(b)-2),',')]]
+LET buttons_t = [machine IN buttons_string | [b IN machine| [ix IN b | toInteger(ix)]]]
+
+LET joltages_string = [l IN split($data, '\n') | split(l, " ")[-1]]
+LET joltages_t = [jt IN [jt IN [jt In joltages_string | substring(jt,1, size(jt)-2)] | split(jt, ',')] | [j IN jt | toInteger(j)]]
+
+LET machines = [ix IN range (0, size(targets_t)-1) |
+    {
+      target: targets_t[ix],
+      buttons: buttons_t[ix],
+      joltages: joltages_t[ix]
+    }]
+
+UNWIND machines AS machine
+CALL (machine) {
+  CREATE (m:Machine)
+    SET
+      m.target = machine.target,
+      m.joltages = machine.joltages
+  UNWIND range(0, size(machine.buttons) - 1) AS b_ix
+  CREATE (m)-[:BUTTON {ixs: machine.buttons[b_ix], button_ix: b_ix}]->(m)
+}
+```
+
+### Part 1
+
+```cypher
+CYPHER 25
+MATCH (m:Machine WHERE m.num_actions IS NULL)
+CALL (m) {
+  MATCH path = SHORTEST 1 (m)-[bs:BUTTON]->*(m
+    WHERE reduce (acc = [x IN m.target | false],
+      b IN bs |
+        [ix IN range(0, size(acc)-1) |
+            acc[ix] XOR (ix IN b.ixs)
+        ]
+      ) = m.target
+  )
+  WITH path, size(bs) AS length, m
+  LIMIT 1
+  SET m.num_actions = length
+} IN TRANSACTIONS OF 1 ROWS
+
+NEXT
+
+MATCH (m)
+RETURN sum(m.num_actions) AS part1
+```
+
+### Part 2 (does not scale -- NP-Hard problem)
+
+```cypher
+CYPHER 25
+MATCH (m:Machine WHERE m.num_actions IS NULL)
+CALL (m) {
+  MATCH REPEATABLE ELEMENT path = (m)-[bs:BUTTON]->{0,1000}(m
+    WHERE reduce (acc = [x IN m.joltages | 0],
+      b IN bs |
+        [ix IN range(0, size(acc)-1) |
+            acc[ix] + CASE WHEN ix IN b.ixs THEN 1 ELSE 0 END
+        ]
+      ) = m.joltages
+  )
+  WHERE  allReduce ( acc = [x IN m.joltages | 0],
+      b IN bs |
+        [ix IN range(0, size(acc)-1) |
+            acc[ix] + CASE WHEN ix IN b.ixs THEN 1 ELSE 0 END
+        ],
+        all(ix IN range(0, size(acc)-1) WHERE acc[ix] <= m.joltages[ix])
+      )
+  WITH path, size(bs) AS length, m
+  LIMIT 1
+  SET m.num_actions_j = length
+} IN TRANSACTIONS OF 1 ROWS
+
+NEXT
+
+MATCH (m)
+RETURN sum(m.num_actions_j) AS part2
+```
+
+### Part 2 (genetic heuristic approach)
+
+I could not find a set of hyperparameters that works for every case so I had to compute results separatly.
+The following code is an attempt to summarize the way it was done.
+
+
+```
+CYPHER 25
+
+// parsing input
+
+LET targets_string = [l IN split($data, '\n') | split(l, " ")[0]]
+LET targets_t = [t In targets_string | [ix IN range(0, size(t)-1) | split(t,'')[ix]='#'][1..-1]]
+
+LET buttons_string = [l IN split($data, '\n') | [b IN split(l, " ")[1..-1] | split(substring(b,1, size(b)-2),',')]]
+LET buttons_t = [machine IN buttons_string | [b IN machine| [ix IN b | toInteger(ix)]]]
+
+LET joltages_string = [l IN split($data, '\n') | split(l, " ")[-1]]
+LET joltages_t = [jt IN [jt IN [jt In joltages_string | substring(jt,1, size(jt)-2)] | split(jt, ',')] | [j IN jt | toInteger(j)]]
+
+LET machines = [ix IN range (0, size(targets_t)-1) |
+    {
+      buttons: buttons_t[ix],
+      joltages: joltages_t[ix],
+      one_zero_buttons: [b_ix IN range(0,size(buttons_t[ix])-1)|
+        [jx IN range(0, size(joltages_t[ix])-1)| CASE WHEN jx IN buttons_t[ix][b_ix] THEN 1 ELSE 0 END]
+      ],
+      len: size(joltages_t[ix]),
+      num_buttons: size(buttons_t[ix]),
+      max_joltage: reduce(max=0, j IN joltages_t[ix] | CASE WHEN j > max THEN j ELSE max END)
+    }]
+
+
+UNWIND machines AS machine
+CALL (machine) {
+    // clean database
+    MATCH (n)
+    DETACH DELETE n
+    RETURN count(*) AS _
+
+    NEXT
+
+    // create initial population of press-number vectors
+    UNWIND range(1, $init_pop_size) AS indiv
+    WITH indiv, machine AS m, machine.joltages AS joltages
+    CALL (indiv, m, joltages) {
+        WITH [ix IN range(0,m.num_buttons-1) | toInteger(rand()*15)] AS candidate
+        CREATE (:Indiv {
+        joltages: joltages,
+        candidate: candidate
+        })
+    }
+    RETURN count(*) AS _, m
+
+    NEXT
+
+    UNWIND range(1,$epochs) AS loopx
+    CALL (loopx, m) {
+        MATCH (i:Indiv)
+        WITH m, i
+        WITH reduce(
+          acc=[j IN range(0, m.len-1)|0],
+          bx IN range(0, size(m.one_zero_buttons)-1) |
+            [kx IN range(0, m.len-1)|acc[kx] + (m.one_zero_buttons[bx][kx] * i.candidate[bx])]
+        ) AS val, m, i
+        WITH
+          val,
+          i,
+          reduce(acc=0, d IN [jx IN range(0, size(m.joltages)-1) | abs(m.joltages[jx]- val[jx])]|acc+d) AS dist,
+          reduce(acc=0, p IN i.candidate | acc+p) AS num_press
+        
+        WITH val, i, dist, num_press, 1.0/((1+dist)*(1+num_press)) AS score
+        SET i.val = val, i.dist=dist, i.num_press=num_press, i.score = score
+        RETURN count(*) AS _, m
+
+        NEXT
+
+        MATCH (i:Indiv)
+        WITH i.candidate AS candidate, collect(i)[1..] AS to_del
+        CALL (to_del){
+          UNWIND to_del AS x
+          DETACH DELETE x
+        }
+        RETURN count(*) AS _, m
+
+        NEXT
+        
+        MATCH (i:Indiv)
+        WITH i
+        ORDER BY i.score DESC SKIP $selected_pop
+        CALL(i) {
+          WHEN rand() > $proba_miracle THEN {
+            DETACH DELETE i
+          }
+        }
+        RETURN count(*) AS _, m
+
+        NEXT
+
+        MATCH (i:Indiv)
+        UNWIND range(1, $num_children) AS child_ix
+        CALL (i) {
+          WITH [a IN i.candidate | CASE rand()
+                                    WHEN >$proba_mutation
+                                      THEN CASE WHEN a=0 THEN a ELSE a-1 END
+                                    WHEN >1-$proba_mutation THEN a+1
+                                    ELSE a END] AS child_candidate
+          MERGE (:Indiv {joltages:i.joltages, candidate:child_candidate})
+        }
+        RETURN count(*) AS _, m
+
+        NEXT
+
+        MATCH (i1:Indiv)
+        CALL (i1) {
+          MATCH (i2:Indiv)
+          WITH i2 ORDER BY rand() LIMIT 1
+          WITH i1.candidate[..(size(i1.candidate)/2)]+i2.candidate[(size(i1.candidate)/2)..] AS child_candidate
+          MERGE (:Indiv {joltages:i1.joltages, candidate:child_candidate})
+        }
+        RETURN count(*) AS _, m
+
+        NEXT
+
+        UNWIND range(1, $init_pop_size/3) AS indiv
+        WITH indiv, m, m.joltages AS joltages
+        CALL (indiv, m, joltages) {
+        WITH [ix IN range(0,m.num_buttons-1) | toInteger(rand()*20)] AS candidate
+        MERGE (:Indiv {
+        joltages: joltages,
+        candidate: candidate
+        })
+        RETURN count(*) AS _
+    }
+    RETURN count(*) AS ______
+        
+    }
+    RETURN count(*) AS ______
+
+    NEXT
+
+    MATCH (i:Indiv {dist:0})
+    RETURN i, min(coalesce(i.num_press, 1000000000000)) AS num_press
+} IN TRANSACTIONS OF 1 ROW
+RETURN sum(num_press) AS part2
+```
+
+
 ## Day 11
 
 [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-11-reactor-073e1418a075)

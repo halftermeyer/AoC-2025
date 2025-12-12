@@ -1018,7 +1018,7 @@ LIMIT 1
 
 ## Day 10
 
-[blog]()
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-10-factory-365d758b64f4)
 
 ### setup
 

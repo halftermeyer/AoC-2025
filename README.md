@@ -1124,15 +1124,11 @@ The following code is an attempt to summarize the way it was done.
 
 ```cypher
 CYPHER 25
-
-// parsing input
-
+// Same parsing as before, plus pre-computed incidence matrix
 LET targets_string = [l IN split($data, '\n') | split(l, " ")[0]]
 LET targets_t = [t In targets_string | [ix IN range(0, size(t)-1) | split(t,'')[ix]='#'][1..-1]]
-
 LET buttons_string = [l IN split($data, '\n') | [b IN split(l, " ")[1..-1] | split(substring(b,1, size(b)-2),',')]]
 LET buttons_t = [machine IN buttons_string | [b IN machine| [ix IN b | toInteger(ix)]]]
-
 LET joltages_string = [l IN split($data, '\n') | split(l, " ")[-1]]
 LET joltages_t = [jt IN [jt IN [jt In joltages_string | substring(jt,1, size(jt)-2)] | split(jt, ',')] | [j IN jt | toInteger(j)]]
 
@@ -1140,6 +1136,7 @@ LET machines = [ix IN range (0, size(targets_t)-1) |
     {
       buttons: buttons_t[ix],
       joltages: joltages_t[ix],
+      // Pre-compute 0/1 matrix: which button affects which counter
       one_zero_buttons: [b_ix IN range(0,size(buttons_t[ix])-1)|
         [jx IN range(0, size(joltages_t[ix])-1)| CASE WHEN jx IN buttons_t[ix][b_ix] THEN 1 ELSE 0 END]
       ],
@@ -1148,32 +1145,29 @@ LET machines = [ix IN range (0, size(targets_t)-1) |
       max_joltage: reduce(max=0, j IN joltages_t[ix] | CASE WHEN j > max THEN j ELSE max END)
     }]
 
-
 UNWIND machines AS machine
 CALL (machine) {
-    // clean database
-    MATCH (n)
-    DETACH DELETE n
+    // ─── Clean slate for this machine ───
+    MATCH (n) DETACH DELETE n
     RETURN count(*) AS _
 
     NEXT
 
-    // create initial population of press-number vectors
+    // ─── Create initial random population ───
     UNWIND range(1, $init_pop_size) AS indiv
     WITH indiv, machine AS m, machine.joltages AS joltages
     CALL (indiv, m, joltages) {
         WITH [ix IN range(0,m.num_buttons-1) | toInteger(rand()*15)] AS candidate
-        CREATE (:Indiv {
-        joltages: joltages,
-        candidate: candidate
-        })
+        CREATE (:Indiv {joltages: joltages, candidate: candidate})
     }
     RETURN count(*) AS _, m
 
     NEXT
 
+    // ─── Evolution loop ───
     UNWIND range(1,$epochs) AS loopx
     CALL (loopx, m) {
+        // Compute achieved joltages and fitness
         MATCH (i:Indiv)
         WITH m, i
         WITH reduce(
@@ -1181,54 +1175,35 @@ CALL (machine) {
           bx IN range(0, size(m.one_zero_buttons)-1) |
             [kx IN range(0, m.len-1)|acc[kx] + (m.one_zero_buttons[bx][kx] * i.candidate[bx])]
         ) AS val, m, i
-        WITH
-          val,
-          i,
-          reduce(acc=0, d IN [jx IN range(0, size(m.joltages)-1) | abs(m.joltages[jx]- val[jx])]|acc+d) AS dist,
-          reduce(acc=0, p IN i.candidate | acc+p) AS num_press
-        
+        WITH val, i,
+             reduce(acc=0, d IN [jx IN range(0, size(m.joltages)-1) | abs(m.joltages[jx]- val[jx])]|acc+d) AS dist,
+             reduce(acc=0, p IN i.candidate | acc+p) AS num_press
         WITH val, i, dist, num_press, 1.0/((1+dist)*(1+num_press)) AS score
         SET i.val = val, i.dist=dist, i.num_press=num_press, i.score = score
-        RETURN count(*) AS _, m
 
-        NEXT
-
+        // Keep only the very best individual (extreme elitism)
         MATCH (i:Indiv)
         WITH i.candidate AS candidate, collect(i)[1..] AS to_del
-        CALL (to_del){
-          UNWIND to_del AS x
-          DETACH DELETE x
-        }
+        CALL (to_del){ UNWIND to_del AS x DETACH DELETE x }
         RETURN count(*) AS _, m
 
-        NEXT
-        
+        // Random massacre of the lower ranks
         MATCH (i:Indiv)
-        WITH i
-        ORDER BY i.score DESC SKIP $selected_pop
-        CALL(i) {
-          WHEN rand() > $proba_miracle THEN {
-            DETACH DELETE i
-          }
-        }
-        RETURN count(*) AS _, m
+        WITH i ORDER BY i.score DESC SKIP $selected_pop
+        CALL(i) { WHEN rand() > $proba_miracle THEN { DETACH DELETE i } }
 
-        NEXT
-
+        // Mutation: per-gene ±1 with probability controlled by $proba_mutation
         MATCH (i:Indiv)
         UNWIND range(1, $num_children) AS child_ix
         CALL (i) {
           WITH [a IN i.candidate | CASE rand()
-                                    WHEN >$proba_mutation
-                                      THEN CASE WHEN a=0 THEN a ELSE a-1 END
+                                    WHEN >$proba_mutation THEN CASE WHEN a=0 THEN a ELSE a-1 END
                                     WHEN >1-$proba_mutation THEN a+1
                                     ELSE a END] AS child_candidate
           MERGE (:Indiv {joltages:i.joltages, candidate:child_candidate})
         }
-        RETURN count(*) AS _, m
 
-        NEXT
-
+        // Single-point crossover
         MATCH (i1:Indiv)
         CALL (i1) {
           MATCH (i2:Indiv)
@@ -1236,27 +1211,21 @@ CALL (machine) {
           WITH i1.candidate[..(size(i1.candidate)/2)]+i2.candidate[(size(i1.candidate)/2)..] AS child_candidate
           MERGE (:Indiv {joltages:i1.joltages, candidate:child_candidate})
         }
-        RETURN count(*) AS _, m
 
-        NEXT
-
+        // Immigration – inject fresh random blood
         UNWIND range(1, $init_pop_size/3) AS indiv
         WITH indiv, m, m.joltages AS joltages
         CALL (indiv, m, joltages) {
-        WITH [ix IN range(0,m.num_buttons-1) | toInteger(rand()*20)] AS candidate
-        MERGE (:Indiv {
-        joltages: joltages,
-        candidate: candidate
-        })
+          WITH [ix IN range(0,m.num_buttons-1) | toInteger(rand()*20)] AS candidate
+          MERGE (:Indiv {joltages: joltages, candidate: candidate})
+        }
         RETURN count(*) AS _
-    }
-    RETURN count(*) AS ______
-        
     }
     RETURN count(*) AS ______
 
     NEXT
 
+    // Extract the best perfect solution (dist = 0)
     MATCH (i:Indiv {dist:0})
     RETURN i, min(coalesce(i.num_press, 1000000000000)) AS num_press
 } IN TRANSACTIONS OF 1 ROW

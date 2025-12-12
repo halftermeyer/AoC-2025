@@ -1122,7 +1122,7 @@ I could not find a set of hyperparameters that works for every case so I had to 
 The following code is an attempt to summarize the way it was done.
 
 
-```
+```cypher
 CYPHER 25
 
 // parsing input

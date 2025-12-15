@@ -1343,7 +1343,7 @@ RETURN sum(reduce(
 
 ## Day 12
 
-[blog]()
+[blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-12-christmas-tree-farm-5c942c4aad54)
 
 ### Setup
 

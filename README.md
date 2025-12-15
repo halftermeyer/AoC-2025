@@ -3,6 +3,21 @@
 This is my personal rule for the 12 days:
 Every single puzzle of Advent of Code 2025 will be solved exclusively in Neo4j Cypher, made easier by the brand-new CYPHER 25 ~and the occasional APOC / GDS helper when it really shines~. No Python, no JavaScript, no external code — the database does everything.
 
+| Day | Puzzle | Code | Blog | CS Concept |
+|-----|--------|------|------|------------|
+| 1   | [Secret Entrance](https://adventofcode.com/2025/day/1) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-1) | [blog](https://medium.com/@pierre.halftermeyer/aoc-2025-in-cypher-day-1-secret-entrance-0e8a747edafd) | Modular arithmetic, boundary crossing detection |
+| 2   | [Gift Shop](https://adventofcode.com/2025/day/2) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-2) | [blog](https://medium.com/@pierre.halftermeyer/aoc-2025-in-cypher-day-2-gift-shop-advent-of-code-2025-ed9e57557c52) | Range enumeration, pattern/substring detection |
+| 3   | [Lobby](https://adventofcode.com/2025/day/3) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-3) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-3-lobby-76281355e6ae) | Greedy algorithm, subsequence selection with order preservation |
+| 4   | [Printing Department](https://adventofcode.com/2025/day/4) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-4) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-4-printing-department-in-cypher-abaf356f6dcc) | Grid graph, degree-based removal (k-core) |
+| 5   | [Cafeteria](https://adventofcode.com/2025/day/5) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-5) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-5-cafeteria-in-cypher-ecdc2808cb17) | Interval overlapping/union, connected components |
+| 6   | [Trash Compactor](https://adventofcode.com/2025/day/6) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-6) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-6-trash-compactor-ccffec374bf0) | Stack-based expression evaluation with precedence |
+| 7   | [Laboratories](https://adventofcode.com/2025/day/7) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-7) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-7-laboratories-cf68d1dc3fd5) | Beam propagation in DAG, branching counts |
+| 8   | [Playground](https://adventofcode.com/2025/day/8) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-8) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-8-playground-173f473bd9fa) | 3D nearest-neighbor graph, union-find forest |
+| 9   | [Movie Theater](https://adventofcode.com/2025/day/9) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-9) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-9-movie-theater-98fa0545413d) | Point-in-polygon (even-odd rule), largest axis-aligned rectangle |
+| 10  | [Factory](https://adventofcode.com/2025/day/10) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-10) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-10-factory-365d758b64f4) | Bit toggling / XOR modeling, shortest path in state graph; heuristic search |
+| 11  | [Reactor](https://adventofcode.com/2025/day/11) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-11) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-11-reactor-073e1418a075) | Path counting in DAG, vertex separators |
+| 12  | [Christmas Tree Farm](https://adventofcode.com/2025/day/12) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-12) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-12-christmas-tree-farm-5c942c4aad54) | 2D bin packing with polyominoes (feasibility via area heuristics) |
+
 ## Day 1
 
 [blog](https://medium.com/@pierre.halftermeyer/aoc-2025-in-cypher-day-1-secret-entrance-0e8a747edafd)

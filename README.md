@@ -982,6 +982,7 @@ CALL (awesomelonely_row) {
 }
 ```
 <img width="2308" height="1203" alt="viz_aoc_flooding" src="https://github.com/user-attachments/assets/43e3471e-5e34-452a-94f5-091ea4673258" />
+<img width="2308" height="1203" alt="viz_aoc_flood_2" src="https://github.com/user-attachments/assets/4ff9ed82-6a12-424d-bf46-c6c74f9677d8" />
 
 #### Connect every allowed tile (red or green)
 

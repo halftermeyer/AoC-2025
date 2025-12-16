@@ -1017,6 +1017,7 @@ CALL(row_tiles) {
 RETURN count(row_tiles) AS _
 ```
 <img width="2231" height="1003" alt="Capture d’écran 2025-12-16 à 12 20 11" src="https://github.com/user-attachments/assets/9be87522-146d-4857-8df0-699c4b0500a1" />
+<img width="2308" height="1203" alt="viz_aoc_flooding" src="https://github.com/user-attachments/assets/43e3471e-5e34-452a-94f5-091ea4673258" />
 
 #### Final answer
 

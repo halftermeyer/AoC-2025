@@ -958,7 +958,7 @@ WHERE NOT EXISTS {(t)-[:NEXT_BORDER_EAST|NEXT_BORDER_SOUTH]-()}
 SET t:Lonely
 ```
 
-#### Even-odd fill: scan each row west → east
+#### Even-odd flooding: scan each row west → east
 
 ```cypher
 // Classic point-in-polygon even-odd rule implemented purely in Cypher
@@ -981,6 +981,7 @@ CALL (awesomelonely_row) {
   }
 }
 ```
+<img width="2308" height="1203" alt="viz_aoc_flooding" src="https://github.com/user-attachments/assets/43e3471e-5e34-452a-94f5-091ea4673258" />
 
 #### Connect every allowed tile (red or green)
 
@@ -1016,7 +1017,6 @@ CALL(row_tiles) {
 }
 RETURN count(row_tiles) AS _
 ```
-<img width="2308" height="1203" alt="viz_aoc_flooding" src="https://github.com/user-attachments/assets/43e3471e-5e34-452a-94f5-091ea4673258" />
 
 #### Final answer
 

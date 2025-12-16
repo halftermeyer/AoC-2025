@@ -320,6 +320,7 @@ WITH p, count {(p)-[:NEIGHBOR]-(x WHERE x.mark = '@')} AS neigh_num
 WHERE neigh_num < 4
 RETURN count(p) AS part1
 ```
+<img width="1734" height="1152" alt="day_6_viz" src="https://github.com/user-attachments/assets/93d0a01e-8b7c-499a-9ec8-581948e4943b" />
 
 ### Part 2
 
@@ -666,6 +667,7 @@ CALL (loopx) {
 ON ERROR BREAK
 RETURN sum(processed) AS locations_processed
 ```
+<img width="714" height="784" alt="Capture d’écran 2025-12-08 à 13 25 05" src="https://github.com/user-attachments/assets/eef9931d-30c2-45e4-99b2-ea8de4da9b7a" />
 
 ### Part 1
 
@@ -724,6 +726,7 @@ RETURN sum (reduce ( acc=0, s IN COLLECT {
 CREATE POINT INDEX jbox_point_index IF NOT EXISTS
 FOR (j:JBox) ON (j.position)
 ```
+<img width="901" height="656" alt="Capture d’écran 2025-12-08 à 16 27 34" src="https://github.com/user-attachments/assets/652fb01e-3576-48c4-a7cd-45a67afcee3b" />
 
 ```cypher
 CYPHER 25
@@ -798,6 +801,9 @@ CALL (jb1, jb2){
   MATCH (xs:LastXsSeen)
   RETURN xs.x1 * xs.x2 AS part2
 ```
+<img width="3370" height="1802" alt="image" src="https://github.com/user-attachments/assets/c2def91b-d291-4218-bedc-635a4b611ba9" />
+
+<img width="894" height="715" alt="Capture d’écran 2025-12-08 à 16 31 57" src="https://github.com/user-attachments/assets/a2c63119-31cf-43bc-bec5-da2c1bf968f1" />
 
 ## Day 9
 
@@ -1010,6 +1016,7 @@ CALL(row_tiles) {
 }
 RETURN count(row_tiles) AS _
 ```
+<img width="2231" height="1003" alt="Capture d’écran 2025-12-16 à 12 20 11" src="https://github.com/user-attachments/assets/9be87522-146d-4857-8df0-699c4b0500a1" />
 
 #### Final answer
 

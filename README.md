@@ -724,7 +724,7 @@ RETURN sum (reduce ( acc=0, s IN COLLECT {
 
 ```cypher
 CREATE POINT INDEX jbox_point_index IF NOT EXISTS
-FOR (j:JBox) ON (j.position)
+FOR (j:JBox) ON (j.pos)
 ```
 <img width="901" height="656" alt="Capture d’écran 2025-12-08 à 16 27 34" src="https://github.com/user-attachments/assets/652fb01e-3576-48c4-a7cd-45a67afcee3b" />
 

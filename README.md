@@ -1256,6 +1256,129 @@ RETURN sum(num_press) AS part2
 ```
 
 
+### Part 2 (Gaussian elimination + ILP minimizer — LLM-generated alternative)
+
+This approach implements a complete integer linear equation solver in pure CYPHER 25:
+1. Build the incidence matrix M^T (lights × buttons) for each machine
+2. RREF via `reduce()` (row echelon form with back-elimination)
+3. Identify free variables (columns without pivots)
+4. Brute-force optimize free variables (0..300 for 1 free var, 0..200² for 2, 0..100³ for 3)
+5. For each assignment, compute determined variables from RREF, check non-negativity, minimize total
+
+```cypher
+CYPHER 25
+LET machines = [l IN split($data, '\n') WHERE size(l) > 0 |
+  head([parts IN [split(l, ' ')] |
+    head([joltages IN [[j IN split(substring(parts[-1], 1, size(parts[-1])-2), ',') | toInteger(j)]] |
+      head([buttons IN [[b IN parts[1..-1] | [ix IN split(substring(b, 1, size(b)-2), ',') | toInteger(ix)]]] |
+        head([nl IN [size(joltages)] | head([nb IN [size(buttons)] |
+          {buttons: buttons, joltages: joltages, nl: nl, nb: nb,
+           aug: [light IN range(0, nl-1) |
+            [col IN range(0, nb) |
+              CASE WHEN col < nb THEN CASE WHEN light IN buttons[col] THEN toFloat(1) ELSE toFloat(0) END
+                ELSE toFloat(joltages[light]) END]
+          ]}
+        ])])
+      ])
+    ])
+  ])
+]
+RETURN machines
+
+NEXT
+
+UNWIND machines AS m
+CALL (m) {
+  WITH m.nl AS nr, m.nb + 1 AS nc, m.nb AS nb
+
+  // RREF via reduce — full row reduction with partial pivoting
+  LET rref = reduce(
+    s = {mat: m.aug, pivots: []},
+    pivot_row IN range(0, nr - 1) |
+    head([best_col IN [reduce(bc = -1, c IN range(0, nb - 1) |
+      CASE WHEN bc >= 0 THEN bc
+      WHEN any(r IN range(pivot_row, nr-1) WHERE abs(s.mat[r][c]) > 0.0001 AND NOT c IN s.pivots) THEN c
+      ELSE bc END
+    )] |
+      CASE WHEN best_col < 0 THEN s ELSE
+        head([best_row IN [reduce(br = pivot_row, r IN range(pivot_row, nr-1) |
+          CASE WHEN abs(s.mat[r][best_col]) > abs(s.mat[br][best_col]) THEN r ELSE br END
+        )] |
+          head([swapped IN [[r IN range(0, nr-1) |
+            CASE WHEN r = pivot_row THEN s.mat[best_row] WHEN r = best_row THEN s.mat[pivot_row] ELSE s.mat[r] END
+          ]] |
+            head([pv IN [swapped[pivot_row][best_col]] |
+              head([scaled IN [[r IN range(0, nr-1) |
+                CASE WHEN r = pivot_row THEN [c IN range(0, nc-1) | swapped[r][c] / pv] ELSE swapped[r] END
+              ]] |
+                {mat: [r IN range(0, nr-1) |
+                  CASE WHEN r = pivot_row THEN scaled[r]
+                  ELSE head([f IN [scaled[r][best_col]] |
+                    [c IN range(0, nc-1) | scaled[r][c] - f * scaled[pivot_row][c]]
+                  ]) END
+                ], pivots: s.pivots + [best_col]}
+              ])
+            ])
+          ])
+        ])
+      END
+    ])
+  )
+
+  LET free_vars = [c IN range(0, nb-1) WHERE NOT c IN rref.pivots]
+  LET nf = size(free_vars)
+
+  LET answer = CASE nf
+    WHEN 0 THEN
+      head([sol IN [[c IN range(0, nb-1) |
+        head([ri IN [coll.indexOf(rref.pivots, c)] |
+          CASE WHEN ri >= 0 THEN toInteger(round(rref.mat[ri][nc-1])) ELSE 0 END])
+      ]] | reduce(s=0, v IN sol | s + v)])
+    WHEN 1 THEN
+      reduce(best = 99999, fv0 IN range(0, 300) |
+        head([sol IN [[c IN range(0, nb-1) |
+          CASE WHEN c = free_vars[0] THEN fv0
+          ELSE head([ri IN [coll.indexOf(rref.pivots, c)] |
+            CASE WHEN ri >= 0 THEN toInteger(round(rref.mat[ri][nc-1] - rref.mat[ri][free_vars[0]] * toFloat(fv0))) ELSE 0 END]) END
+        ]] | head([t IN [reduce(s2=0, v IN sol | s2+v)] |
+          CASE WHEN all(v IN sol WHERE v >= 0) AND t < best THEN t ELSE best END])])
+      )
+    WHEN 2 THEN
+      reduce(best = 99999, fv0 IN range(0, 200) |
+        reduce(b2 = best, fv1 IN range(0, 200) |
+          head([sol IN [[c IN range(0, nb-1) |
+            CASE WHEN c = free_vars[0] THEN fv0 WHEN c = free_vars[1] THEN fv1
+            ELSE head([ri IN [coll.indexOf(rref.pivots, c)] |
+              CASE WHEN ri >= 0 THEN toInteger(round(
+                rref.mat[ri][nc-1] - rref.mat[ri][free_vars[0]] * toFloat(fv0) - rref.mat[ri][free_vars[1]] * toFloat(fv1)
+              )) ELSE 0 END]) END
+          ]] | head([t IN [reduce(s2=0, v IN sol | s2+v)] |
+            CASE WHEN all(v IN sol WHERE v >= 0) AND t < b2 THEN t ELSE b2 END])])
+        )
+      )
+    ELSE
+      reduce(best = 99999, fv0 IN range(0, 100) |
+        reduce(b1 = best, fv1 IN range(0, 100) |
+          reduce(b2 = b1, fv2 IN range(0, 100) |
+            head([sol IN [[c IN range(0, nb-1) |
+              CASE WHEN c = free_vars[0] THEN fv0 WHEN c = free_vars[1] THEN fv1 WHEN c = free_vars[2] THEN fv2
+              ELSE head([ri IN [coll.indexOf(rref.pivots, c)] |
+                CASE WHEN ri >= 0 THEN toInteger(round(
+                  rref.mat[ri][nc-1] - rref.mat[ri][free_vars[0]] * toFloat(fv0) - rref.mat[ri][free_vars[1]] * toFloat(fv1) - rref.mat[ri][free_vars[2]] * toFloat(fv2)
+                )) ELSE 0 END]) END
+            ]] | head([t IN [reduce(s2=0, v IN sol | s2+v)] |
+              CASE WHEN all(v IN sol WHERE v >= 0) AND t < b2 THEN t ELSE b2 END])])
+          )
+        )
+      )
+    END
+
+  RETURN answer
+}
+
+RETURN sum(answer) AS part2
+```
+
 ## Day 11
 
 [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-11-reactor-073e1418a075)

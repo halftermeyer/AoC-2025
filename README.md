@@ -14,7 +14,7 @@ Every single puzzle of Advent of Code 2025 will be solved exclusively in Neo4j C
 | 7   | [Laboratories](https://adventofcode.com/2025/day/7)    | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-7) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-7-laboratories-cf68d1dc3fd5)              | Beam propagation in DAG, branching counts               | Directional edges, property propagation for splits     |
 | 8   | [Playground](https://adventofcode.com/2025/day/8)      | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-8) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-8-playground-173f473bd9fa)                | 3D nearest-neighbor graph, union-find forest            | Union-find with variable-length paths, spatial points  |
 | 9   | [Movie Theater](https://adventofcode.com/2025/day/9)   | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-9) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-9-movie-theater-98fa0545413d)             | Point-in-polygon (even-odd rule), largest axis-aligned rectangle | Directional border chains, parity toggle scans         |
-| 10  | [Factory](https://adventofcode.com/2025/day/10)        | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-10) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-10-factory-365d758b64f4)                  | Bit toggling / XOR modeling, shortest path in state graph; heuristic search | Button relationships, shortest path + population evolution |
+| 10  | [Factory](https://adventofcode.com/2025/day/10)        | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-10) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-in-cypher-day-10-factory-365d758b64f4)                  | Bit toggling / XOR modeling, shortest path in state graph; heuristic search; Gaussian elimination + ILP minimizer | Button relationships, shortest path + population evolution ; functional cypher |
 | 11  | [Reactor](https://adventofcode.com/2025/day/11)        | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-11) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-11-reactor-073e1418a075)                           | Path counting in DAG, vertex separators                 | `:CONNECTS_TO` graph, multiplicative shortcuts across layers |
 | 12  | [Christmas Tree Farm](https://adventofcode.com/2025/day/12) | [code](https://github.com/halftermeyer/AoC-2025/blob/main/README.md#day-12) | [blog](https://medium.com/@pierre.halftermeyer/advent-of-code-2025-day-12-christmas-tree-farm-5c942c4aad54)               | 2D bin packing with polyominoes (feasibility via area heuristics) | Pure list processing, cell counting, mathematical bounds |
 
@@ -1256,7 +1256,7 @@ RETURN sum(num_press) AS part2
 ```
 
 
-### Part 2 (Gaussian elimination + ILP minimizer — LLM-generated alternative)
+### Part 2 (Gaussian elimination + ILP minimizer)
 
 This approach implements a complete integer linear equation solver in pure CYPHER 25:
 1. Build the incidence matrix M^T (lights × buttons) for each machine
